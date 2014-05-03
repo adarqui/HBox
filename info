@@ -1,0 +1,3 @@
+ghc -e "script"
+
+cabal install missingh --constraint 'unix < 2.7' --force-reinstalls

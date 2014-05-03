@@ -1,0 +1,37 @@
+:set prompt "# "
+-- :set +s
+-- :set +t
+:set editor "vim"
+
+:def _load const(System.Environment.getEnvironment>>=maybe(return"")readFile.lookup"GHCIRC")
+:_load
+:undef _load
+
+:def helpme \str -> print ":hoogle :browse :src" >> return ""
+
+:def hoogle \str -> return $ ":! hoogle --count=15 \"" ++ str ++ "\""
+
+:def ghc_pkg (\l->return $ ":!"++GHC.Paths.ghc_pkg++" "++l)
+
+:def browser (\l->return $ ":! links "++l)
+
+import Data.List
+import Control.Monad
+import Data.String
+import System.Posix.Files
+import System.Directory
+import System.Posix.Temp
+import System.Posix.Env
+import System.Posix.Unistd
+import System.Posix.Signals
+import System.Posix.User
+import System.Posix.Process
+import GHC.IO.Handle
+
+-- :l Applicative.hs
+-- :l Misc.hs
+-- :l Pool.hs
+-- :l Time.hs
+-- :l Id.hs
+-- :l StatInc.hs
+-- :l Stat.hs

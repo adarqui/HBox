@@ -1,0 +1,332 @@
+todo: cabal 1.18 - sandbox
+http://coldwa.st/e/blog/2013-08-20-Cabal-sandbox.html
+
+important:
+
+:show bindings
+:def name (\var -> return $ ":! links " ++ var)
+
+multiline comments:
+:{
+;}
+
+
+fun:
+
+import Control.Monad
+import Data.String
+import System.Posix.Files
+import System.Directory
+import System.Posix.Temp
+import System.Posix.Env
+import System.Posix.Unistd
+import System.Posix.Signals
+import System.Posix.User
+import System.Posix.Process
+import GHC.IO.Handle
+
+-- let columns = mapM_ print
+let columns' a = forM_ a print
+let cat = readFile
+let stat = getFileStatus
+let mkdir = createDirectory
+let rmdir = removeDirectory
+let dir = getDirectoryContents
+let pwd = getCurrentDirectory
+let cp = copyFile
+let renameir = renameDirectory
+let rename = renameFile
+let mv = rename
+let touch = createFile
+let touch = touchFile
+let cd = setCurrentDirectory
+let mktemp = mkstemp
+let env = getEnvironment
+let truncate = setFileSize
+let kill = signalProcess
+let idu = getRealUserID
+let idg = getRealGroupID
+
+turn some of these into functions using flag, to pass args: mv -f ... .. also to see if string is dir or file, and choose appropriate action
+
+let (>) = writeFile
+let (>>) = appendFile
+let (<) = readFile
+let (<<) = getLine
+let f =<< x = x >>= f
+
+
+misc:
+ls -al -> getPermissons "/etc/motd"
+chmod -> setPermissions ..
+getModificationTime "/tmp/hi"
+canonicalizePath "hi" -> /tmp/hi
+
+for uname:
+	getSystemID
+
+for ln -s:
+	createSymbolicLink
+
+for chmod:
+	setOwnerAndGroup
+
+for id:
+	getRealUserID, getGroupEntryForID, getUserEntryForID
+
+$$ = getProcessID
+
+getProcessTimes -> for process stats, times()
+
+fork and read output:
+(_, Just hout, _, _) <- createProcess (proc "id" []){ std_out = CreatePipe}
+-- hout
+hGetContents hout
+
+simple way to pipe a process's stdout to returnable data:
+readProcess "date" [] []
+
+
+wc -l
+	liftM (length . lines) $ readFile "/etc/motd"
+	cat "/etc/hosts" >>= return . length . lines
+	length . lines <$> cat "/etc/hosts"
+
+wc -w
+	liftM (length . words) $ readFile "/etc/motd"
+	cat "/etc/hosts" >>= return . length . words
+	length . words <$> cat "/etc/hosts"
+
+wc -c
+	liftM length $ readFile "/etc/motd"
+	cat "/etc/hosts" >>= return . length
+	length <$> cat "/etc/hosts"
+
+head -n N file
+	readFile "/etc/motd" >>= return . take 2 . lines >>= return . join
+	liftM (take 1) $ liftM lines $ readFile "/etc/motd"
+	cat "/etc/motd" >>= return . unlines . take 2 . lines
+	unlines . take 2 . lines <$> cat "/etc/hosts"
+
+head -c N file
+	readFile "/etc/motd" >>= return . take 2
+	take 2 <$> readFile "/etc/motd"
+
+head -w N file
+	cat "/etc/motd" >>= return . unwords . take 1 . words
+	unwords . take 1 . words <$> cat "/etc/motd"
+
+tail -n N file
+	readFile "/etc/motd" >>= return . take 3 . reverse .  lines
+	cat "/etc/motd" >>= return . unlines . take 2 . reverse . lines
+	unlines . reverse . take2 . unlines <$> cat "/etc/motd"
+
+tail -c N file
+	readFile "/etc/motd" >>= return . take 3 . reverse
+	(return . take 2) =<< cat "/etc/motd"
+	take 2 <$> cat "/etc/motd"
+
+rev file
+	readFile "/etc/motd" >>= return . reverse
+	(return . reverse) =<< cat "/etc/hosts"
+
+tac file
+	readFile "/etc/motd" >>= return . reverse . lines
+	(return . reverse . lines) =<< cat "/etc/hosts"
+	reverse . lines <$> cat "/etc/hosts"
+
+exec args
+	import System.Process
+	createProcess $ shell "ls -al"
+	callCommand "ls"
+	callProcess "ls" ["-al"]
+	x <- executeFile "id" True [] Nothing
+
+sort file
+	readFile "/etc/motd" >>= return . sort
+	sort <$> cat "/etc/motd"
+	cat "/etc/motd" <$$> sort
+
+sort -r file
+	readFile "/etc/motd" >>= return . reverse . sort
+	reverse . sort <$$> cat "/etc/motd"
+	cat "/etc/motd" <$$> reverse . sort
+
+touch file
+	import System.Posix
+	touchFile "/tmp/ok"
+
+> file
+	import System.IO
+	writeFile "/tmp/q" "qqqq"
+
+>> file
+	import System.IO
+	appendFile "/tmp/q" "zzzz"
+
+< reverse pipe
+
+redir:
+	cat "/etc/motd" >>= (>) "/tmp/oogg"
+	cat "/etc/motd" >>= (>>) "/tmp/oogg"
+	print =<< cat "/etc/motd"
+	(return . reverse) =<< cat "/etc/motd"
+
+[ -f <file> ]
+	import System.Posix.Files
+	fileExist "/etc/hosts"
+
+	import System.Directory
+	doesFileExist "/etc/hosts"
+
+[ -d <dir> ]
+	import System.Directory
+	doesDirectoryExist "/etc/hosts"
+
+size of file:
+	(print . fileSize) =<< getFileStatus "/tmp/q"
+
+
+cool stuff:
+-----------
+
+cat "/etc/hosts" >>= return . unlines . take 2 . reverse . lines >>= (>) "/tmp/poop"
+cat "/etc/hosts" <$$> unlines . take 2 . reverse . lines
+
+parse w for users:
+readProcess "w" [] [] >>= return . map head . drop 2 . map words . lines
+(return . map head . drop 2 . map words . lines) =<< readProcess "w" [] []
+(map head . drop 2 . map words . lines) `fmap` readProcess "w" [] []
+map head . drop 2 . map words . lines <$> readProcess "w" [] []
+
+parse yes, forever:
+(_, Just hout, _, _) <- createProcess (proc "yes" ["hello"]) { std_out = CreatePipe }
+forever $ (hGetLine hout >>= return . reverse >>= print)
+
+
+
+misc
+import Data.List.Split
+readFile "/etc/motd" >>= return . split (oneOf "\n")
+
+let f (x:(xs)) = x
+
+
+
+
+
+
+
+HBOX:
+
+mkdir ["-p","/dosfksdof","/dofksdo","/tmp/ogdfdfg","/tmp/foo/bar/lul/z/bing/boop/dfogkfo/dgdgdfgdffdgdfgdf/dofkgfodkgdfo/dd","-m0o00666"]
+
+liftM (filter (`notElem` [".",".."])) (dir ".")
+
+liftM (filter (\x -> (length x) < 5)) $ dir "/etc/"
+
+let z = liftM (map ("/tmp/" ++)) $ dir "/tmp"
+liftM length z
+liftM mtime $ liftM (!! 2) z
+
+
+cd "/tmp"
+pwd
+cd =<< (~/)
+pwd
+
+
+globs "/tmp/a*" >>= return . map (\x -> x ++ "_dir") >>= mkdir
+[("/tmp/all.log_dir",True,Nothing),("/tmp/a_dir",True,Nothing)]
+
+
+globs "/tmp/a*" <$$> map (\x -> x ++ "_dir2") >>= mkdir
+[("/tmp/all.log_dir_dir2",True,Nothing),("/tmp/all.log_dir2",True,Nothing),("/tmp/a_dir_dir2",True,Nothing),("/tmp/a_dir2",True,Nothing)]
+
+globs "/tmp/a*"
+["/tmp/all.log_dir","/tmp/all.log","/tmp/a_dir2","/tmp/all.log_dir_dir2","/tmp/a_dir","/tmp/all.log_dir2","/tmp/a_dir_dir2","/tmp/a"]
+
+
+reverse $ fsToString $ stat $ fromJust z
+
+
+
+
+
+ghc: *Main> mtime "/tm"
+R {who = "/tm", ret = Nothing, ex = Just /tm: getFileStatus: does not exist (No such file or directory)}
+*Main> mtime "/tmp/o"
+R {who = "/tmp/o", ret = Just 2014-01-22 01:51:53 UTC, ex = Nothing}
+*Main> mtime' ["/tm","/tmp/o"]
+ghc: [R {who = "/tm", ret = Nothing, ex = Just /tm: getFileStatus: does not exist (No such file or directory)},R {who = "/tmp/o", ret = Just 2014-01-22 01:51:53 UTC, ex = Nothing}]
+ghc:
+ghc:
+ghc: *Main> forM_ it print
+R {who = "/tm", ret = Nothing, ex = Just /tm: getFileStatus: does not exist (No such file or directory)}
+R {who = "/tmp/o", ret = Just 2014-01-22 01:51:53 UTC, ex = Nothing}
+*Main> mtime "/tm" <$$> who
+ghc: "/tm"
+ghc:
+ghc:
+ghc:
+ghc: *Main> x <- mtime "/tmp/o"
+*Main> x
+R {who = "/tmp/o", ret = Just 2014-01-22 01:51:53 UTC, ex = Nothing}
+*Main> X x
+X {getX = R {who = "/tmp/o", ret = Just 2014-01-22 01:51:53 UTC, ex = Nothing}}
+*Main> getX $ it
+R {who = "/tmp/o", ret = Just 2014-01-22 01:51:53 UTC, ex = Nothing}
+ghc: *Main>
+ghc:
+ghc:
+ghc: i should change that to unX, instead of getX
+ghc:
+ghc: ok does that make any sense............
+ghc: HEH
+ghc: then i have shit like, type RDir = R String (Maybe Bool) (Maybe IOError)
+ghc: type RMtime ...
+ghc: gn
+ghc:
+
+
+
+*Main> mtime' ["/tmp/o","/t"] >>= mapM_ (print . who)
+"/tmp/o"
+"/t"
+
+*Main> mtime' ["/tmp/o","/t"] >>= mapM_ (\x -> print $ who x ++ " -> " ++ (show $ ex x))
+"/tmp/o -> Nothing"
+"/t -> Just /t: getFileStatus: does not exist (No such file or directory)"
+
+
+conn <- connect defaultConnectInfo
+(Right x) <- runRedis conn $ do get $ B.pack "hey"
+fromJust it
+
+
+
+
+pkill
+l <- readProcess "ps" ["-e","-o","comm,pid"] "" >>= return . lines >>= return . liftM words >>= return . filter (\x -> head x `elem` ["sleep"])
+
+kill $ [ x !! 1 | x <- l ]
+
+
+
+mongo:
+p <- con "127.0.0.1"
+run p "darqios" $ do x <- allDatabases ; y <- allCollections ; return (x, y)
+run p "darqios" $ findOne $ MGO.select [] "test2"
+run p "darqios" (findOne $ MGO.select [] "test2") >>= \(Right a) -> return a
+
+
+redis:
+r <- rcon "127.0.0.1" 6379
+rcmd r $ Database.Redis.keys "*"
+Right ["pwn:static","hi","pwn:body","hey","PING","O","pwn:global","Y"]
+
+
+
+
+runScotty 9911 (get ":/word" $ do param "word" >>= html)
+

@@ -1,0 +1,7 @@
+*.o
+*.hi
+hell/
+.cabal-sandbox/lib/
+.cabal-sandbox/share/
+.cabal-sandbox/x*/
+dist/

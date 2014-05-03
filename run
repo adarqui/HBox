@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ghc -ignore-dot-ghci --interactive
