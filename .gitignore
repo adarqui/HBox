@@ -4,4 +4,6 @@ hell/
 .cabal-sandbox/lib/
 .cabal-sandbox/share/
 .cabal-sandbox/x*/
+.cabal-sandbox
+cabal-sandbox-config
 dist/
